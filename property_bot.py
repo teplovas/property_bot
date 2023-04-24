@@ -115,7 +115,7 @@ points_of_interest = points_of_interest_config["points_of_interest"]
 # Calculate points of interest destinations
 destinations = []
 for point_of_interest in points_of_interest:
-	destinations.append(point_of_interest["post_code"])
+	destinations.append(point_of_interest["post_code"].replace(' ', ''))
 
 
 distances_parsed_response = get_distance_matrix_response(property_address, destinations, 'walking')
