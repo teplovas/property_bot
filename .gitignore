@@ -1,3 +1,5 @@
 
 app_config.json
 __pycache__/config_parser.cpython-39.pyc
+__pycache__/cache.cpython-39.pyc
+cache_data.txt

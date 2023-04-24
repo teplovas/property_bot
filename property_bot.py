@@ -9,6 +9,7 @@ import argparse
 
 from config_parser import *
 from convertbng.util import convert_bng
+from cache import Cache
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--postcode', '-p', help="postcode of the property", type= str)
@@ -27,17 +28,34 @@ if (args.postcode == None and args.address == None):
 app_config = read_config('app_config.json')
 google_maps_key = app_config["google_maps_key"]
 
+cache = Cache()
+
+def get_url_response(url):
+	response_from_cache = cache.get(url)
+	if (response_from_cache == None):
+		print('Data was NOT found in cache by key {}'.format(url))
+
+		response = requests.request("GET", url, headers={}, data={})
+		response_code = response.status_code
+		print('Response code: {}'.format(response_code))
+
+		if (response_code != 200):
+			print('Can not execute script because {} failed!'.format(url))
+			exit(1)
+
+		response_text = json.loads(response.text)
+		cache.put(url, response_text)
+		return response_text
+
+	print('Data found in cache by key {}'.format(url))
+	return response_from_cache
+
 
 def get_distance_matrix_response(origin, destinations, mode):
 	url_dest = '|'.join(destinations)
 
 	url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins={}&destinations={}&mode={}&units=metric&key={}".format(origin, url_dest, mode, google_maps_key)
-
-	#print('Generated url: {}'.format(url))
-
-	response = requests.request("GET", url, headers={}, data={})
-	#print(response.text)
-	return json.loads(response.text)
+	return get_url_response(url)
 
 
 def print_distance_result(distances_parsed_response, idx, destination_name, mode):
@@ -51,13 +69,11 @@ lng = None
 
 def get_postcode_by_address(address):
 	if (address == None):
-		print('Can not get postcode by empty address!')
+		print('Can not find postcode by empty address!')
 		exit(0)
 
 	geocode_url = 'https://maps.googleapis.com/maps/api/geocode/json?address={}&key={}'.format(address, google_maps_key)
-	geocode_response = requests.request("GET", geocode_url, headers={}, data={})
-	parsed_geocode_response = json.loads(geocode_response.text)
-	#print(geocode_response.text)
+	parsed_geocode_response = get_url_response(geocode_url)
 
 	global lat
 	lat = parsed_geocode_response["results"][0]["geometry"]["location"]["lat"]
@@ -65,8 +81,7 @@ def get_postcode_by_address(address):
 	lng = parsed_geocode_response["results"][0]["geometry"]["location"]["lng"]
 
 	postcode_url = "https://api.postcodes.io/postcodes?lon={}&lat={}".format(lng, lat)
-	postcode_response = requests.request("GET", postcode_url, headers={}, data={})
-	parsed_postcode_response = json.loads(postcode_response.text)
+	parsed_postcode_response = get_url_response(postcode_url)
 
 	postcode = parsed_postcode_response["result"][0]["postcode"]
 	
@@ -127,4 +142,6 @@ idx = 0
 for point_of_interest in points_of_interest:
 	print_distance_result(distances_parsed_response, idx, point_of_interest["name"], "Walking")
 	idx += 1
+
+cache.finalize()
 
