@@ -7,42 +7,42 @@ import json
 import urllib.parse
 import argparse
 
+from config_parser import *
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--postcode', '-p', help="postcode of the property", type= str)
 parser.add_argument('--address', '-a', help="address of the property", type= str)
+parser.add_argument('--points_of_interest', '-pi', help="points of interest config", type= str, default='points_of_interest_config.json')
 
 print(parser.format_help())
 args = parser.parse_args()
 print(args)
-print(args.postcode)
-print(args.address)
 
 if (args.postcode == None and args.address == None):
-	print('Should specify at postcode or address!')
+	print('Should specify postcode or address!')
 	exit(0)
 
-google_maps_key = ''
+
+app_config = read_config('app_config.json')
+google_maps_key = app_config["google_maps_key"]
 
 
 def get_distance_matrix_response(origin, destinations, mode):
 	url_dest = '|'.join(destinations)
 
-	url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins={}&destinations={}&mode={}&units=metric&departure_time=1682323255&key={}".format(origin, url_dest, mode, google_maps_key)
+	url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins={}&destinations={}&mode={}&units=metric&key={}".format(origin, url_dest, mode, google_maps_key)
 
-	print('Generated url: {}'.format(url))
+	#print('Generated url: {}'.format(url))
 
-	payload={}
-	headers = {}
-
-	response = requests.request("GET", url, headers=headers, data=payload)
-	print(response.text)
+	response = requests.request("GET", url, headers={}, data={})
+	#print(response.text)
 	return json.loads(response.text)
 
 
-def print_distance_result(distances_parsed_response, idx, destination_name):
+def print_distance_result(distances_parsed_response, idx, destination_name, mode):
 	duration = distances_parsed_response["rows"][0]["elements"][idx]["duration"]["text"]
 	destination_address = distances_parsed_response["destination_addresses"][idx]
-	print('Time to {} ({}): {}'.format(destination_name, destination_address, duration))
+	print('{} time to {} ({}): {}'.format(mode, destination_name, destination_address, duration))
 
 
 def get_postcode_by_address(address):
@@ -66,31 +66,37 @@ def get_postcode_by_address(address):
 	return postcode.replace(' ', '')
 
 
+# Parse address and postcode
 property_address = urllib.parse.quote(args.address) if args.address != None else None
 print('prop address: {}'.format(property_address))
 property_postcode = args.postcode if args.postcode != None else get_postcode_by_address(property_address)
 print('prop postcode: {}'.format(property_postcode))
 
 
-swimming_pool_post_code = 'HA48DZ'
-ruislip_post_code = 'HA48LD'
-ruislip_manor_post_code = 'HA49AA'
-eastcote_post_code = 'HA51QZ'
-
-
-print('Open info for {}'.format(property_address))
+# Open sites with information
+print('Open info for {}'.format(property_postcode))
 
 crystalroof = 'https://crystalroof.co.uk/report/postcode/{}/overview'.format(property_postcode)
-
 webbrowser.open(crystalroof)
 
 
-distances_parsed_response = get_distance_matrix_response(property_address, [swimming_pool_post_code, ruislip_post_code, ruislip_manor_post_code, eastcote_post_code], 'walking')
+# Read points of interest config
+points_of_interest_config = read_config(args.points_of_interest)
+points_of_interest = points_of_interest_config["points_of_interest"]
+
+# Calculate points of interest destinations
+destinations = []
+for point_of_interest in points_of_interest:
+	destinations.append(point_of_interest["post_code"])
+
+
+distances_parsed_response = get_distance_matrix_response(property_address, destinations, 'walking')
 origin_address = distances_parsed_response["origin_addresses"]
 
 print('Property address: {}'.format(origin_address))
-print_distance_result(distances_parsed_response, 0, "swimming pool")
-print_distance_result(distances_parsed_response, 1, "Ruislip station")
-print_distance_result(distances_parsed_response, 2, "Ruislip Manor station")
-print_distance_result(distances_parsed_response, 3, "Eastcote station")
+
+idx = 0
+for point_of_interest in points_of_interest:
+	print_distance_result(distances_parsed_response, idx, point_of_interest["name"], "Walking")
+	idx += 1
 

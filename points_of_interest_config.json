@@ -1,0 +1,20 @@
+{
+	"points_of_interest": [
+		{
+			"name": "Swimming pool",
+			"post_code": "HA48DZ"
+		},
+		{
+			"name": "Ruislip station",
+			"post_code": "HA48LD"
+		},
+		{
+			"name": "Ruislip Manor station",
+			"post_code": "HA49AA"
+		},
+		{
+			"name": "Eastcote station",
+			"post_code": "HA51QZ"
+		}
+	]
+}
