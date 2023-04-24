@@ -8,6 +8,7 @@ import urllib.parse
 import argparse
 
 from config_parser import *
+from convertbng.util import convert_bng
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--postcode', '-p', help="postcode of the property", type= str)
@@ -45,6 +46,9 @@ def print_distance_result(distances_parsed_response, idx, destination_name, mode
 	print('{} time to {} ({}): {}'.format(mode, destination_name, destination_address, duration))
 
 
+lat = None
+lng = None
+
 def get_postcode_by_address(address):
 	if (address == None):
 		print('Can not get postcode by empty address!')
@@ -53,8 +57,11 @@ def get_postcode_by_address(address):
 	geocode_url = 'https://maps.googleapis.com/maps/api/geocode/json?address={}&key={}'.format(address, google_maps_key)
 	geocode_response = requests.request("GET", geocode_url, headers={}, data={})
 	parsed_geocode_response = json.loads(geocode_response.text)
+	#print(geocode_response.text)
 
+	global lat
 	lat = parsed_geocode_response["results"][0]["geometry"]["location"]["lat"]
+	global lng
 	lng = parsed_geocode_response["results"][0]["geometry"]["location"]["lng"]
 
 	postcode_url = "https://api.postcodes.io/postcodes?lon={}&lat={}".format(lng, lat)
@@ -68,16 +75,37 @@ def get_postcode_by_address(address):
 
 # Parse address and postcode
 property_address = urllib.parse.quote(args.address) if args.address != None else None
-print('prop address: {}'.format(property_address))
 property_postcode = args.postcode if args.postcode != None else get_postcode_by_address(property_address)
-print('prop postcode: {}'.format(property_postcode))
 
 
 # Open sites with information
-print('Open info for {}'.format(property_postcode))
-
+print('Open crystalroof for {}'.format(property_postcode))
 crystalroof = 'https://crystalroof.co.uk/report/postcode/{}/overview'.format(property_postcode)
-webbrowser.open(crystalroof)
+webbrowser.open(crystalroof, new=1)
+
+if (property_address != None):
+	print('Open google maps for {}'.format(property_address))
+	google_maps = 'https://www.google.co.uk/maps/place/{}'.format(property_address)
+	webbrowser.open(google_maps)
+
+print('Property lat is {}, lng is {}'.format(lat, lng))
+if (lat != None and lng != None):
+	print('Open locrating')
+	locrating = 'https://www.locrating.com/school_catchment_areas.aspx?lat={}&lng={}'.format(lat, lng)
+	webbrowser.open(locrating, new=0)
+
+	bng = convert_bng(lng, lat)
+	easting = bng[0][0]
+	northing = bng[1][0]
+
+	print('Open flood risk maps for easting {} and northing {}'.format(easting, northing))
+
+	surface_water_flood_risk = 'https://check-long-term-flood-risk.service.gov.uk/map?easting={}&northing={}&map=SurfaceWater'.format(easting, northing)
+	webbrowser.open(surface_water_flood_risk, new=0)
+
+	river_flood_risk = 'https://check-long-term-flood-risk.service.gov.uk/map?easting={}&northing={}&map=RiversOrSea'.format(easting, northing)
+	webbrowser.open(river_flood_risk, new=0)
+	
 
 
 # Read points of interest config
